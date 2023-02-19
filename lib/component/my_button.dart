@@ -5,10 +5,10 @@ class MyButton extends StatelessWidget {
     super.key,
     required this.color,
     required this.text,
-    required this.navigationScreen,
+    required this.onPress,
   });
   final Color color;
-  final String navigationScreen;
+  final void Function()? onPress;
   final String text;
   @override
   Widget build(BuildContext context) {
@@ -19,10 +19,7 @@ class MyButton extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(30.0),
         child: MaterialButton(
-          onPressed: () {
-            //Go to login screen.
-            Navigator.pushNamed(context, navigationScreen);
-          },
+          onPressed: onPress,
           minWidth: 200.0,
           height: 42.0,
           child: Text(
