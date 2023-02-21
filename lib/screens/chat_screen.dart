@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flash_chat/component/message_bubble.dart';
+import 'package:flash_chat/screens/welcomescreen.dart';
 import 'package:flutter/material.dart';
 import '../constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 final _firestore = FirebaseFirestore.instance;
+late User signedInUser;
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -23,7 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final messageTextController = TextEditingController();
   final _auth = FirebaseAuth.instance;
-  late User signedInUser;
+
   String? messageText;
 
   void getCurrentUser() {
@@ -38,14 +40,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // void messagesStream() async {
-  //   await for (var snapshot in _firestore.collection('messages').snapshots()) {
-  //     for (var message in snapshot.docs) {
-  //       print(message.data());
-  //     }
-  //   }
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,7 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: () {
                 //Implement logout functionality
                 _auth.signOut();
-                Navigator.pop(context);
+                Navigator.pushNamed(context, WelcomeScreen.id);
               }),
         ],
         title: const Text('⚡️Chat'),
@@ -66,7 +60,6 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             const MessagesStream(),
             Container(
@@ -88,8 +81,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     onPressed: () {
                       //Implement send functionality.
                       messageTextController.clear();
-                      _firestore.collection('messages').add(
-                          {'text': messageText, 'sender': signedInUser.email});
+                      _firestore.collection('messages').add({
+                        'text': messageText,
+                        'sender': signedInUser.email,
+                        'time': FieldValue.serverTimestamp()
+                      });
                     },
                     child: const Text(
                       'Send',
@@ -112,26 +108,35 @@ class MessagesStream extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore.collection('messages').snapshots(),
+      stream: _firestore.collection('messages').orderBy('time').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const CircularProgressIndicator(
-            backgroundColor: Colors.blueAccent,
+          return const SizedBox(
+            height: 50,
+            width: 50,
+            child: CircularProgressIndicator(
+              backgroundColor: Colors.blueAccent,
+            ),
           );
         }
-        final messages = snapshot.data!.docs;
+        final messages = snapshot.data!.docs.reversed;
         List<Widget> messagesWidgets = [];
         for (var message in messages) {
           final messageText = message.get('text');
           final messageSender = message.get('sender');
+          final currentUser = signedInUser.email;
+
           final messageWidget = MessageBubble(
+            isMe: currentUser == messageSender,
             sender: messageSender,
             text: messageText,
           );
+
           messagesWidgets.add(messageWidget);
         }
         return Expanded(
           child: ListView(
+            reverse: true,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
             children: messagesWidgets,
           ),
