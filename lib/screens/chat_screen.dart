@@ -1,7 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flash_chat/component/message_bubble.dart';
 import 'package:flutter/material.dart';
 import '../constant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+final _firestore = FirebaseFirestore.instance;
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -18,8 +21,8 @@ class _ChatScreenState extends State<ChatScreen> {
     getCurrentUser();
   }
 
+  final messageTextController = TextEditingController();
   final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
   late User signedInUser;
   String? messageText;
 
@@ -34,6 +37,14 @@ class _ChatScreenState extends State<ChatScreen> {
       print(e);
     }
   }
+
+  // void messagesStream() async {
+  //   await for (var snapshot in _firestore.collection('messages').snapshots()) {
+  //     for (var message in snapshot.docs) {
+  //       print(message.data());
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +68,7 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            const MessagesStream(),
             Container(
               decoration: kMessageContainerDecoration,
               child: Row(
@@ -64,6 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: <Widget>[
                   Expanded(
                     child: TextField(
+                      controller: messageTextController,
                       onChanged: (value) {
                         //Do something with the user input.
                         messageText = value;
@@ -74,6 +87,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   TextButton(
                     onPressed: () {
                       //Implement send functionality.
+                      messageTextController.clear();
                       _firestore.collection('messages').add(
                           {'text': messageText, 'sender': signedInUser.email});
                     },
@@ -88,6 +102,41 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class MessagesStream extends StatelessWidget {
+  const MessagesStream({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore.collection('messages').snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const CircularProgressIndicator(
+            backgroundColor: Colors.blueAccent,
+          );
+        }
+        final messages = snapshot.data!.docs;
+        List<Widget> messagesWidgets = [];
+        for (var message in messages) {
+          final messageText = message.get('text');
+          final messageSender = message.get('sender');
+          final messageWidget = MessageBubble(
+            sender: messageSender,
+            text: messageText,
+          );
+          messagesWidgets.add(messageWidget);
+        }
+        return Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+            children: messagesWidgets,
+          ),
+        );
+      },
     );
   }
 }
